@@ -51,7 +51,7 @@ Requirements: Docker Engine and the Docker Compose plugin.
    docker compose up --build -d
    ```
 
-5. Open `http://localhost:8080` (or the port configured by `APP_PORT`). Django migrations run automatically when the backend container starts. API requests are reverse-proxied by Nginx to Django.
+5. Open `http://localhost:9000` (or the port configured by `FRONTEND_PORT`). Django migrations run automatically when the backend container starts. API requests are reverse-proxied by Nginx to Django. Django is also directly exposed at `http://localhost:10000` (configurable using `BACKEND_PORT`). The frontend remains configured to call `/api` through Nginx.
 
 Useful commands:
 
