@@ -4,6 +4,13 @@ const API=import.meta.env.VITE_API_URL||'http://localhost:8000/api';
 const TIERS=[{a:3,r:.5,g:'bronze'},{a:6,r:.75,g:'bronze'},{a:9,r:1,g:'bronze'},{a:20,r:1.5,g:'silver'},{a:40,r:1.75,g:'silver'},{a:60,r:2.3,g:'silver'},{a:100,r:3,g:'gold'},{a:300,r:3.5,g:'gold'},{a:1000,r:4,g:'gold'}];
 const nano=n=>BigInt(Math.round(Number(n)*1e9)).toString();
 const short=s=>s?`${s.slice(0,5)}…${s.slice(-5)}`:'اتصال کیف پول';
+// Builds a base64 BOC with a single cell holding a text comment (opcode 0 + UTF-8 text).
+function commentPayload(text){
+ const t=new TextEncoder().encode(text),n=t.length+4;
+ if(n>127)throw Error('Comment too long');
+ const cell=[0,2*n,0,0,0,0,...t];
+ const boc=[0xb5,0xee,0x9c,0x72,1,1,1,1,0,cell.length,0,...cell];
+ let bin='';for(const b of boc)bin+=String.fromCharCode(b);return btoa(bin)}
 async function json(url,opts){const r=await fetch(url,opts);const body=await r.json();if(!r.ok)throw Error(body.error||body.verification_error||'خطای سرور');return body}
 function App(){
  const wallet=useTonWallet(),[tonUI]=useTonConnectUI();
@@ -21,8 +28,8 @@ function App(){
  async function pay(){if(!addr){await tonUI.openModal();return}const x=Number(amount);if(!Number.isFinite(x)||x<3||x>100000||!Number.isInteger(x*1e9)){setMsg('مبلغ معتبر حداقل ۳ TON وارد کنید.');return}
  try{setBusy(true);setMsg('در حال ساخت سفارش...');
  const p=await json(`${API}/payments/`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wallet:addr,amount:String(amount)})});setOrder(p);storeOrder(p);
- // TON text comment payload = 4 bytes zero opcode + UTF-8 memo.
- const bytes=new TextEncoder().encode(p.memo);const payload=new Uint8Array(bytes.length+4);payload.set(bytes,4);const b64=btoa(String.fromCharCode(...payload));
+ // TON text comment payload must be a base64 BOC cell (32-bit zero opcode + UTF-8 memo).
+ const b64=commentPayload(p.memo);
  await tonUI.sendTransaction({validUntil:Math.floor(Date.now()/1000)+300,network:'-239',messages:[{address:p.receiver,amount:nano(p.amount),payload:b64}]});
  setMsg('تراکنش به کیف پول ارسال شد. پس از ثبت روی شبکه، «بررسی پرداخت» را بزنید.');
  }catch(e){setMsg('پرداخت انجام یا تأیید نشد: '+(e?.message||'خطا'))}finally{setBusy(false)}}
