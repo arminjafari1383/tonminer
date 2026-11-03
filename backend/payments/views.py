@@ -27,10 +27,10 @@ def create_payment(request):
   wallet=str(body.get('wallet','')).strip()
   amount=Decimal(str(body.get('amount','')))
   nano=amount*Decimal(10**9)
-  if not ADDRESS_RE.fullmatch(wallet) or not amount.is_finite() or nano!=nano.to_integral_value() or not (Decimal('3')<=amount<=Decimal('100000')):
+  if not ADDRESS_RE.fullmatch(wallet) or not amount.is_finite() or nano!=nano.to_integral_value() or not (Decimal('1')<=amount<=Decimal('100000')):
    raise ValueError()
  except (ValueError,InvalidOperation,TypeError,KeyError,json.JSONDecodeError):
-  return JsonResponse({'error':'Invalid wallet or amount (minimum 3 TON)'},status=400)
+  return JsonResponse({'error':'Invalid wallet or amount (minimum 1 TON)'},status=400)
  p=Payment.objects.create(wallet=wallet,amount_nano=int(nano),memo='TONMINER-'+secrets.token_hex(12))
  return JsonResponse(result(p),status=201)
 
