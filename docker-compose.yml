@@ -4,10 +4,8 @@ services:
       context: ./backend
     container_name: ton-miner-backend
     env_file:
-      - ./backend/.env.example
+      - ./backend/.env
     environment:
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:9000}
       DB_NAME: /data/db.sqlite3
     ports:
       - "${BACKEND_PORT:-10000}:8000"
