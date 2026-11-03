@@ -1,4 +1,4 @@
-import json,re,secrets
+import json,re,secrets,time,logging
 from decimal import Decimal,InvalidOperation
 from datetime import timedelta
 from django.conf import settings
@@ -9,6 +9,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 import requests
 from .models import Payment
+
+log=logging.getLogger(__name__)
 
 ADDRESS_RE=re.compile(r'^(?:EQ|UQ|kQ|0Q)[A-Za-z0-9_-]{46}$')
 
@@ -35,8 +37,18 @@ def create_payment(request):
  return JsonResponse(result(p),status=201)
 
 def find_transfer(p):
- headers={'X-API-Key':settings.TONCENTER_API_KEY} if settings.TONCENTER_API_KEY else {}
- response=requests.get(settings.TONCENTER_URL.rstrip('/')+'/getTransactions',params={'address':settings.TON_RECEIVER,'limit':100,'archival':'true'},headers=headers,timeout=15)
+ key=(settings.TONCENTER_API_KEY or '').strip()
+ # Ignore empty/placeholder keys: a bad key makes Toncenter reject every request.
+ headers={'X-API-Key':key} if key and not key.upper().startswith('YOUR_') else {}
+ url=settings.TONCENTER_URL.rstrip('/')+'/getTransactions'
+ params={'address':settings.TON_RECEIVER,'limit':100,'archival':'true'}
+ for attempt in range(3):
+  response=requests.get(url,params=params,headers=headers,timeout=15)
+  if response.status_code==429 and attempt<2:
+   time.sleep(1.5);continue  # free tier without key: ~1 request/second
+  break
+ if response.status_code>=400:
+  log.warning('Toncenter HTTP %s: %s',response.status_code,response.text[:300])
  response.raise_for_status()
  data=response.json()
  if not data.get('ok'): raise ValueError('TON API unavailable')
@@ -81,5 +93,6 @@ def payment_status(request,payment_id):
       if p.status=='pending' and not Payment.objects.filter(tx_hash=tx_hash).exclude(pk=p.pk).exists():
        p.status='confirmed';p.tx_hash=tx_hash;p.confirmed_at=timezone.now();p.save(update_fields=['status','tx_hash','confirmed_at'])
    except (requests.RequestException,ValueError,TypeError) as exc:
+    log.warning('Payment lookup failed for %s: %r',p.id,exc)
     return JsonResponse({**result(p),'verification_error':'Blockchain lookup temporarily unavailable'},status=503)
  return JsonResponse(result(p))
