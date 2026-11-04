@@ -25,7 +25,7 @@ function App(){
   if(!addr)return;
   const pending=orders.filter(o=>o.status==='pending' && (!o.wallet || o.wallet===addr));
   if(!pending.length)return;
-  const id=setInterval(()=>pending.forEach(p=>check(p)),5000);
+  const id=setInterval(()=>pending.forEach(p=>check(p)),3000);
   return()=>clearInterval(id);
  },[addr,orders.map(o=>o.id+o.status).join('|')]);
  const chosen=TIERS.filter(t=>Number(amount)>=t.a).at(-1)||TIERS[0];
@@ -40,15 +40,18 @@ function App(){
     setMsg('پرداخت تأیید شد؛ موجودی شارژ و فاکتور نهایی صادر شد.');
     if(addr) setBalance(await json(`${API}/balance/?wallet=${encodeURIComponent(addr)}`));
    }
+   return updated;
   }catch(e){setMsg('بررسی خودکار پرداخت موقتاً در دسترس نیست: '+e.message)}
  }
  async function pay(){if(!addr){await tonUI.openModal();return}const x=Number(amount);if(!Number.isFinite(x)||x<3||x>100000||!Number.isInteger(x*1e9)){setMsg('مبلغ معتبر حداقل ۳ TON وارد کنید.');return}
  try{setBusy(true);setMsg('در حال ساخت سفارش...');
  const p=await json(`${API}/payments/`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wallet:addr,amount:String(amount)})});setOrder(p);storeOrder({...p,wallet:addr});
- // TON text comment payload = 4 bytes zero opcode + UTF-8 memo.
- const bytes=new TextEncoder().encode(p.memo);const payload=new Uint8Array(bytes.length+4);payload.set(bytes,4);const b64=btoa(String.fromCharCode(...payload));
+ // TON text comment = single cell: 32-bit zero opcode + UTF-8 memo, serialized as a valid BOC (base64).
+ const memoBytes=new TextEncoder().encode(p.memo);const cell=new Uint8Array(4+memoBytes.length);cell.set(memoBytes,4);
+ const boc=new Uint8Array([0xb5,0xee,0x9c,0x72,0x01,0x01,0x01,0x01,0x00,2+cell.length,0x00,0x00,cell.length*2,...cell]);const b64=btoa(String.fromCharCode(...boc));
  await tonUI.sendTransaction({validUntil:Math.floor(Date.now()/1000)+300,network:'-239',messages:[{address:p.receiver,amount:nano(p.amount),payload:b64}]});
- setMsg('درخواست تراکنش ارسال شد؛ وضعیت پرداخت به‌صورت خودکار بررسی می‌شود. فاکتور بعد از تأیید روی شبکه صادر خواهد شد.');
+ setMsg('تراکنش ارسال شد؛ چند ثانیه صبر کنید، موجودی و فاکتور بعد از تأیید شبکه خودکار صادر می‌شود.');
+ for(let i=0;i<90;i++){await new Promise(r=>setTimeout(r,2000));const u=await check(p);if(u&&u.status!=='pending')break}
  }catch(e){setMsg('پرداخت انجام یا تأیید نشد: '+(e?.message||'خطا'))}finally{setBusy(false)}}
  return <main>
  <header><span className="brand"><span style={{fontSize:25,color:'#0098ea'}}>◆</span><h1>TON Miner</h1></span><button id="wbtn" className={wallet?'on':''} onClick={()=>wallet?tonUI.disconnect():tonUI.openModal()}>{short(addr)} {wallet?'×':'◉'}</button></header>
