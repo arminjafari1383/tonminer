@@ -1,20 +1,21 @@
-import json,re,secrets
+import json,re,secrets,time,logging
 from decimal import Decimal,InvalidOperation
 from datetime import timedelta
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Sum
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET,require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 import requests
-from .models import Payment, CreditLedger
+from .models import Payment
+
+log=logging.getLogger(__name__)
 
 ADDRESS_RE=re.compile(r'^(?:EQ|UQ|kQ|0Q)[A-Za-z0-9_-]{46}$')
 
 def result(p):
- return {'id':str(p.id),'status':p.status,'amount':str(Decimal(p.amount_nano)/Decimal(10**9)),'memo':p.memo,'receiver':settings.TON_RECEIVER,'tx_hash':p.tx_hash,'receipt':({'number':str(p.id),'amount':str(Decimal(p.amount_nano)/Decimal(10**9)),'tx_hash':p.tx_hash,'confirmed_at':p.confirmed_at.isoformat() if p.confirmed_at else None} if p.status=='confirmed' else None)}
+ return {'id':str(p.id),'status':p.status,'amount':str(Decimal(p.amount_nano)/Decimal(10**9)),'memo':p.memo,'receiver':settings.TON_RECEIVER,'tx_hash':p.tx_hash}
 
 @csrf_exempt
 @require_POST
@@ -28,16 +29,26 @@ def create_payment(request):
   wallet=str(body.get('wallet','')).strip()
   amount=Decimal(str(body.get('amount','')))
   nano=amount*Decimal(10**9)
-  if not ADDRESS_RE.fullmatch(wallet) or not amount.is_finite() or nano!=nano.to_integral_value() or not (Decimal('3')<=amount<=Decimal('100000')):
+  if not ADDRESS_RE.fullmatch(wallet) or not amount.is_finite() or nano!=nano.to_integral_value() or not (Decimal('1')<=amount<=Decimal('100000')):
    raise ValueError()
  except (ValueError,InvalidOperation,TypeError,KeyError,json.JSONDecodeError):
-  return JsonResponse({'error':'Invalid wallet or amount (minimum 3 TON)'},status=400)
+  return JsonResponse({'error':'Invalid wallet or amount (minimum 1 TON)'},status=400)
  p=Payment.objects.create(wallet=wallet,amount_nano=int(nano),memo='TONMINER-'+secrets.token_hex(12))
  return JsonResponse(result(p),status=201)
 
 def find_transfer(p):
- headers={'X-API-Key':settings.TONCENTER_API_KEY} if settings.TONCENTER_API_KEY else {}
- response=requests.get(settings.TONCENTER_URL.rstrip('/')+'/getTransactions',params={'address':settings.TON_RECEIVER,'limit':100,'archival':'true'},headers=headers,timeout=15)
+ key=(settings.TONCENTER_API_KEY or '').strip()
+ # Ignore empty/placeholder keys: a bad key makes Toncenter reject every request.
+ headers={'X-API-Key':key} if key and not key.upper().startswith('YOUR_') else {}
+ url=settings.TONCENTER_URL.rstrip('/')+'/getTransactions'
+ params={'address':settings.TON_RECEIVER,'limit':100,'archival':'true'}
+ for attempt in range(3):
+  response=requests.get(url,params=params,headers=headers,timeout=15)
+  if response.status_code==429 and attempt<2:
+   time.sleep(1.5);continue  # free tier without key: ~1 request/second
+  break
+ if response.status_code>=400:
+  log.warning('Toncenter HTTP %s: %s',response.status_code,response.text[:300])
  response.raise_for_status()
  data=response.json()
  if not data.get('ok'): raise ValueError('TON API unavailable')
@@ -53,33 +64,6 @@ def find_transfer(p):
   if tx.get('transaction_id',{}).get('hash'):
    return tx['transaction_id']['hash']
  return None
-
-def wallet_key(wallet):
-    import base64
-    if ':' in wallet:
-        return wallet.lower()
-    try:
-        raw=base64.urlsafe_b64decode(wallet+'==')
-        if len(raw)!=36: return None
-        return f'{int.from_bytes(raw[1:2],"big",signed=True)}:{raw[2:34].hex()}'
-    except Exception:
-        return None
-
-def credit_payment(p):
-    # Must run inside the same database transaction as status confirmation.
-    key=wallet_key(p.wallet)
-    if not key: raise ValueError('Invalid wallet for credit')
-    CreditLedger.objects.get_or_create(payment=p,defaults={'wallet_key':key,'amount_nano':p.amount_nano})
-
-def wallet_balance(request):
-    wallet=request.GET.get('wallet','').strip()
-    if not ADDRESS_RE.fullmatch(wallet):
-        return JsonResponse({'error':'Invalid wallet'},status=400)
-    key=wallet_key(wallet)
-    if not key:return JsonResponse({'error':'Invalid wallet'},status=400)
-    total=CreditLedger.objects.filter(wallet_key=key).aggregate(v=Sum('amount_nano'))['v'] or 0
-    count=CreditLedger.objects.filter(wallet_key=key).count()
-    return JsonResponse({'balance':str(Decimal(total)/Decimal(10**9)),'confirmed_count':count})
 
 def same_address(a,b):
  # TON friendly addresses share the same 32-byte account ID even if bounce flags differ.
@@ -107,10 +91,8 @@ def payment_status(request,payment_id):
      with transaction.atomic():
       p=Payment.objects.select_for_update().get(pk=p.pk)
       if p.status=='pending' and not Payment.objects.filter(tx_hash=tx_hash).exclude(pk=p.pk).exists():
-       p.status='confirmed';p.tx_hash=tx_hash;p.confirmed_at=timezone.now();p.save(update_fields=['status','tx_hash','confirmed_at']);credit_payment(p)
+       p.status='confirmed';p.tx_hash=tx_hash;p.confirmed_at=timezone.now();p.save(update_fields=['status','tx_hash','confirmed_at'])
    except (requests.RequestException,ValueError,TypeError) as exc:
+    log.warning('Payment lookup failed for %s: %r',p.id,exc)
     return JsonResponse({**result(p),'verification_error':'Blockchain lookup temporarily unavailable'},status=503)
- if p.status=='confirmed':
-  with transaction.atomic():
-   credit_payment(p)
  return JsonResponse(result(p))

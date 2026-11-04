@@ -64,12 +64,3 @@ docker compose down
 ```
 
 The SQLite database is persisted in the `django_data` Docker volume. For production, put the app behind HTTPS, configure a real domain in `ALLOWED_HOSTS`, use a production database such as PostgreSQL, and review the security limitations above. Do not expose the development server or use the example secret in production.
-
-
-## Automatic payment verification and receipts (updated)
-
-- No manual verification button: while the app is open it polls pending order IDs every 5 seconds and refreshes balance every 15 seconds. This does **not** replace a server-side scheduled reconciliation worker when users close the app.
-- Payment creation returns only a pending request, **not an invoice**. A final receipt appears after an on-chain match.
-- CreditLedger stores one credit per confirmed payment in SQLite; balance comes from the backend `/api/balance/?wallet=...`, not browser localStorage.
-- Existing confirmed payments gain a ledger entry when their status endpoint is requested. Existing pending payments are checked when their owner reopens the app with the same browser data.
-- For production use wallet authentication, background settlement/reconciliation, pagination/indexing, tested transaction decoding, database migrations, and rate limiting.

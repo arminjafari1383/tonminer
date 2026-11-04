@@ -11,11 +11,3 @@ class Payment(models.Model):
  confirmed_at=models.DateTimeField(null=True,blank=True)
  @property
  def amount_ton(self): return self.amount_nano/10**9
-
-
-class CreditLedger(models.Model):
-    """One immutable credit per verified on-chain payment."""
-    payment = models.OneToOneField(Payment, on_delete=models.PROTECT, related_name='credit')
-    wallet_key = models.CharField(max_length=80, db_index=True)
-    amount_nano = models.BigIntegerField()
-    created_at = models.DateTimeField(auto_now_add=True)
