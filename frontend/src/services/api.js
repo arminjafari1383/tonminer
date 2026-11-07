@@ -13,13 +13,12 @@ async function request(path, options={}) {
     if(rr.ok){const data=await rr.json();setTokens(data.access,refresh);headers.Authorization=`Bearer ${data.access}`;res=await fetch(`${API}${path}`,{...options,headers});}
   }
   const data=await res.json().catch(()=>({}));
-  if(!res.ok) throw new Error(data.detail || JSON.stringify(data) || "Request failed");
+  if(!res.ok){const e=new Error(data.detail || JSON.stringify(data) || "Request failed");e.status=res.status;throw e;}
   return data;
 }
 export const api={
   request,
-  login:(username,password)=>request("/auth/token/",{method:"POST",body:JSON.stringify({username,password})}),
-  register:(username,email,password,referral_code="")=>request("/auth/register/",{method:"POST",body:JSON.stringify({username,email,password,referral_code})}),
+  guest:(referral_code="")=>request("/auth/guest/",{method:"POST",body:JSON.stringify({referral_code})}),
   me:()=>request("/auth/me/"),
   dashboard:()=>request("/mining/dashboard/"),
   wallet:(wallet_address)=>request("/wallet/",{method:"POST",body:JSON.stringify({wallet_address})}),

@@ -42,9 +42,10 @@ CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS","http://localhost:5173")
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "DEFAULT_THROTTLE_RATES": {"guest": os.getenv("GUEST_RATE", "10/hour")},
 }
 from datetime import timedelta
-SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=30), "REFRESH_TOKEN_LIFETIME": timedelta(days=7)}
+SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=30), "REFRESH_TOKEN_LIFETIME": timedelta(days=365)}
 
 TON_RECEIVER_ADDRESS = os.getenv("TON_RECEIVER_ADDRESS", "")
 TONCENTER_API_URL = os.getenv("TONCENTER_API_URL", "https://toncenter.com/api/v2")
