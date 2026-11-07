@@ -25,7 +25,7 @@ if os.getenv("POSTGRES_HOST"):
         "USER":os.getenv("POSTGRES_USER","tonminer"),"PASSWORD":os.getenv("POSTGRES_PASSWORD","change-me"),
         "HOST":os.getenv("POSTGRES_HOST","db"),"PORT":os.getenv("POSTGRES_PORT","5432")}}
 else:
-    DATABASES = {"default":{"ENGINE":"django.db.backends.sqlite3","NAME":BASE_DIR/"db.sqlite3"}}
+    DATABASES = {"default":{"ENGINE":"django.db.backends.sqlite3","NAME":os.getenv("DB_NAME", str(BASE_DIR/"db.sqlite3"))}}
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME":"django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME":"django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -42,6 +42,7 @@ CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS","http://localhost:5173")
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "NUM_PROXIES": int(os.getenv("NUM_PROXIES", "1")),
     "DEFAULT_THROTTLE_RATES": {"guest": os.getenv("GUEST_RATE", "10/hour")},
 }
 from datetime import timedelta
