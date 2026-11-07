@@ -29,7 +29,7 @@ export function AuthProvider({children}){
  function boot(){
   setLoading(true);setError("");
   starting=starting||start().finally(()=>{starting=null;});
-  starting.then(setUser).catch(e=>setError(e.message||"خطا در اتصال به سرور")).finally(()=>setLoading(false));
+  starting.then(setUser).catch(e=>setError(e.message||"Could not connect to the server")).finally(()=>setLoading(false));
  }
  useEffect(boot,[]);
  return <C.Provider value={{user,loading,error,retry:boot}}>{children}</C.Provider>;

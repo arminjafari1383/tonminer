@@ -1,6 +1,6 @@
 # Configure only after reconciling against the complete source and approved business rules.
 FREE_TH = 10
-FREE_CYCLE_SECONDS = 6 * 24 * 60 * 60
+FREE_CYCLE_SECONDS = 5 * 24 * 60 * 60
 FREE_CYCLE_REWARD_TON = "1.0000000000000000"
 DEPOSIT_YIELD_CAP_MULTIPLIER = "2.5"
 MIN_TOPUP_TON = "3"
@@ -18,3 +18,14 @@ TIERS = [
     {"code":"gold-300","name":"Gold","amount":"300","daily_rate_percent":"3.5"},
     {"code":"gold-1000","name":"Gold","amount":"1000","daily_rate_percent":"4"},
 ]
+
+
+def rate_for(amount):
+    """Daily profit percent for a purchase: the highest tier whose amount is <= the purchase."""
+    from decimal import Decimal
+    a = Decimal(str(amount))
+    chosen = TIERS[0]
+    for t in TIERS:
+        if a >= Decimal(t["amount"]):
+            chosen = t
+    return Decimal(chosen["daily_rate_percent"])

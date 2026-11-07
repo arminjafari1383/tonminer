@@ -21,17 +21,17 @@ def normalize_ton_address(value: str) -> str:
     if ":" in value:
         workchain, account = value.split(":", 1)
         if len(account) != 64:
-            raise ValueError("آدرس کیف پول TON معتبر نیست.")
+            raise ValueError("Invalid TON wallet address.")
         int(account, 16)
         return f"{int(workchain)}:{account.lower()}"
     try:
         raw = base64.urlsafe_b64decode(value + "=" * ((4 - len(value) % 4) % 4))
     except (ValueError, binascii.Error):
-        raise ValueError("آدرس کیف پول TON معتبر نیست.")
+        raise ValueError("Invalid TON wallet address.")
     if len(raw) != 36 or raw[0] & 0x7F not in (0x11, 0x51):
-        raise ValueError("آدرس کیف پول TON معتبر نیست.")
+        raise ValueError("Invalid TON wallet address.")
     if _crc16_xmodem(raw[:34]) != int.from_bytes(raw[34:], "big"):
-        raise ValueError("اعتبارسنجی checksum آدرس TON ناموفق بود.")
+        raise ValueError("TON address checksum validation failed.")
     workchain = int.from_bytes(raw[1:2], "big", signed=True)
     return f"{workchain}:{raw[2:34].hex()}"
 

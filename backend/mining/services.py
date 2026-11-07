@@ -33,13 +33,28 @@ def accrue(user):
     return account
 
 def dashboard_for(user):
-    account, _ = MiningAccount.objects.get_or_create(user=user)
+    from django.conf import settings
+    from django.db.models import Sum
+    from referrals.models import Referral
+    MiningAccount.objects.get_or_create(user=user)
     account = accrue(user)
     positions = list(MiningPosition.objects.filter(user=user, active=True))
     principal = sum((p.principal for p in positions), D("0"))
     daily = sum((p.principal * p.daily_rate_percent / D("100") for p in positions), D("0"))
     next_cycle = account.free_cycle_started_at + timedelta(seconds=FREE_CYCLE_SECONDS)
+
+    # Lifetime earnings by source (no extra DB column needed)
+    cycles_done = int(round((account.free_cycle_started_at - account.created_at).total_seconds() / FREE_CYCLE_SECONDS))
+    free_earned = D(FREE_CYCLE_REWARD_TON) * max(0, cycles_done)
+    referral_earned = Referral.objects.filter(referrer=user).aggregate(t=Sum("reward_amount"))["t"] or D("0")
+    yield_earned = account.deposit_yield_earned
+    total_mined = free_earned + referral_earned + yield_earned
     return {
+        "demo": settings.DEMO_MODE,
+        "total_mined": str(total_mined),
+        "free_earned": str(free_earned),
+        "referral_earned": str(referral_earned),
+        "yield_earned": str(yield_earned),
         "balance": str(account.balance),
         "wallet_address": account.wallet_address,
         "deposit_total": str(principal),
@@ -47,7 +62,8 @@ def dashboard_for(user):
         "deposit_yield_earned": str(account.deposit_yield_earned),
         "deposit_yield_cap": str(principal * D(DEPOSIT_YIELD_CAP_MULTIPLIER)),
         "free_th": 10,
+        "free_cycle_seconds": FREE_CYCLE_SECONDS,
+        "free_cycle_reward": FREE_CYCLE_REWARD_TON,
         "next_free_cycle_at": next_cycle.isoformat(),
-        "positions": [{"principal":str(p.principal),"daily_rate_percent":str(p.daily_rate_percent),
-                       "plan":p.deposit.status} for p in positions],
+        "positions": [{"principal": str(p.principal), "daily_rate_percent": str(p.daily_rate_percent)} for p in positions],
     }
