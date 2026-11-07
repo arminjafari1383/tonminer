@@ -3,7 +3,7 @@ from django.db import transaction
 from django.utils import timezone
 from datetime import timedelta
 from .models import MiningAccount, MiningPosition
-from .constants import FREE_CYCLE_SECONDS, FREE_CYCLE_REWARD_TON, DEPOSIT_YIELD_CAP_MULTIPLIER
+from .constants import FREE_CYCLE_SECONDS, FREE_CYCLE_REWARD_TON, DEPOSIT_YIELD_CAP_MULTIPLIER, MIN_WITHDRAW_TON
 
 D = Decimal
 @transaction.atomic
@@ -61,6 +61,7 @@ def dashboard_for(user):
         "daily_deposit_yield": str(daily),
         "deposit_yield_earned": str(account.deposit_yield_earned),
         "deposit_yield_cap": str(principal * D(DEPOSIT_YIELD_CAP_MULTIPLIER)),
+        "min_withdraw": MIN_WITHDRAW_TON,
         "free_th": 10,
         "free_cycle_seconds": FREE_CYCLE_SECONDS,
         "free_cycle_reward": FREE_CYCLE_REWARD_TON,

@@ -4,7 +4,8 @@ FREE_CYCLE_SECONDS = 5 * 24 * 60 * 60
 FREE_CYCLE_REWARD_TON = "1.0000000000000000"
 DEPOSIT_YIELD_CAP_MULTIPLIER = "2.5"
 MIN_TOPUP_TON = "3"
-MIN_WITHDRAW_TON = "100"
+import os
+MIN_WITHDRAW_TON = os.getenv("MIN_WITHDRAW_TON", "100")
 
 # Conservative configurable tiers. Validate exact tier amounts/rates against source before launch.
 TIERS = [
