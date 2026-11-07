@@ -48,6 +48,8 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=30), "REFRESH_TOKEN_LIFETIME": timedelta(days=365)}
 
+PUBLIC_URL = os.getenv("PUBLIC_URL", "").strip().rstrip("/")
+DEMO_MODE = os.getenv("DEMO_MODE", "0") == "1"
 TON_RECEIVER_ADDRESS = os.getenv("TON_RECEIVER_ADDRESS", "")
 TONCENTER_API_URL = os.getenv("TONCENTER_API_URL", "https://toncenter.com/api/v2")
 TONCENTER_API_KEY = os.getenv("TONCENTER_API_KEY", "")

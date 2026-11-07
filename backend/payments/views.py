@@ -46,10 +46,13 @@ class PaymentCreateView(APIView):
             return Response({"error":"حداکثر ۹ رقم اعشار برای TON مجاز است."}, status=400)
 
         receiver = getattr(settings, "TON_RECEIVER_ADDRESS", "").strip()
+        if settings.DEMO_MODE and not receiver:
+            receiver = "DEMO-MODE-NO-REAL-FUNDS"
         if not receiver:
             return Response({"error":"آدرس دریافت TON در سرور تنظیم نشده است."}, status=503)
         try:
-            normalize_ton_address(receiver)
+            if not settings.DEMO_MODE:
+                normalize_ton_address(receiver)
         except ValueError:
             return Response({"error":"آدرس دریافت TON در تنظیمات سرور معتبر نیست."}, status=503)
 
@@ -79,7 +82,7 @@ class PaymentStatusView(APIView):
 
         if order.status == "pending":
             try:
-                tx_hash = find_matching_payment(order)
+                tx_hash = ("demo-" + str(order.id)) if settings.DEMO_MODE else find_matching_payment(order)
             except Exception as exc:
                 return Response({"error":"خطا در بررسی شبکه TON؛ دوباره تلاش کنید.", "verification_error":str(exc)}, status=502)
 
