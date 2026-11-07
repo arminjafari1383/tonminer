@@ -1,3 +1,7 @@
 from django.urls import path
-from . import views
-urlpatterns=[path('payments/',views.create_payment),path('payments/<uuid:payment_id>/',views.payment_status)]
+from .views import PaymentCreateView, PaymentStatusView
+
+urlpatterns = [
+    path("", PaymentCreateView.as_view()),
+    path("<uuid:order_id>/", PaymentStatusView.as_view()),
+]

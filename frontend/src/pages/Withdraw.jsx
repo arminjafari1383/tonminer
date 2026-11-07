@@ -1,0 +1,4 @@
+import{useEffect,useState}from"react";import{api}from"../services/api";
+export default function Withdraw(){const[a,A]=useState("100"),[list,L]=useState([]),[msg,M]=useState("");async function load(){try{L(await api.withdrawals())}catch{}}useEffect(()=>{load()},[]);
+async function send(){M("");try{const x=await api.createWithdrawal(a);M(`درخواست برداشت ${x.id} ثبت شد و منتظر بررسی است.`);load()}catch(e){M(e.message)}}
+return <><h2>برداشت TON</h2><p className="muted">حداقل برداشت: 100 TON. برداشت به‌صورت خودکار روی بلاکچین ارسال نمی‌شود و نیازمند بررسی اپراتور است.</p><label>مبلغ (TON)</label><input type="number" min="100" step=".001" value={a} onChange={e=>A(e.target.value)}/><button className="primary" onClick={send}>ثبت درخواست برداشت</button>{msg&&<p className="notice">{msg}</p>}<h3>تاریخچه</h3>{list.map(x=><div className="row" key={x.id}><span>{x.amount} TON</span><b>{x.status}</b></div>)}</>}

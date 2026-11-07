@@ -1,0 +1,1 @@
+export default function MiningGauge({balance}){return <div className="gauge"><div className="gauge-inner"><div className="rig">⛏️</div><strong>{Number(balance||0).toFixed(4)}</strong><span>TON BALANCE</span></div></div>}

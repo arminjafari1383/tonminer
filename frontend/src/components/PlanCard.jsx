@@ -1,0 +1,1 @@
+export default function PlanCard({plan,onSelect,selected}){return <button className={`plan ${plan.name.toLowerCase()} ${selected?"selected":""}`} onClick={()=>onSelect(plan)}><span><b>{plan.amount} TON</b><small>{plan.name}</small></span><strong>{plan.rate}% <small>روزانه</small></strong></button>}

@@ -1,0 +1,42 @@
+:root{
+ --bg:#061A35;--sf:#0B2850;--ink:#EAF4FF;--mu:#9DB9D9;--ln:#1B4778;
+ --ac:#1677F2;--acs:#FFFFFF;--gd:#49C8FF;--gt:#9BE7FF;--ok:#36D6A0;--tr:#174477;
+ color-scheme:dark;
+}
+:root[data-theme="light"]{
+ --bg:#EAF3FF;--sf:#FFFFFF;--ink:#0B2344;--mu:#547294;--ln:#C7D9EF;
+ --ac:#1769D2;--acs:#FFFFFF;--gd:#087EC4;--gt:#075D99;--ok:#07865F;--tr:#D0E1F4;
+ color-scheme:light;
+}
+:root[data-theme="dark"]{
+ --bg:#061A35;--sf:#0B2850;--ink:#EAF4FF;--mu:#9DB9D9;--ln:#1B4778;
+ --ac:#1677F2;--acs:#FFFFFF;--gd:#49C8FF;--gt:#9BE7FF;--ok:#36D6A0;--tr:#174477;
+ color-scheme:dark;
+}
+body{background:var(--bg);color:var(--ink)}
+header .brand>span{color:#42C8FF!important}
+#plans .bronze{--pg:linear-gradient(135deg,#123C70,#1769B2);--pb:#2C82CF;--pt:#EAF4FF;--pm:#B9D9F7}
+#plans .silver{--pg:linear-gradient(135deg,#17669B,#28A6D8);--pb:#74C9ED;--pt:#F2FBFF;--pm:#D1F1FF}
+#plans .gold{--pg:linear-gradient(135deg,#173F8F,#176FE5 65%,#4AC8F5);--pb:#62BDF2;--pt:#FFFFFF;--pm:#D8F4FF}
+#plans .plan[aria-checked="true"]{border-color:#8BE2FF;box-shadow:0 0 0 2px #38A9F4 inset,0 0 18px rgba(39,154,255,.38)}
+#s-topup .sum{border:1px solid var(--ac)}
+#pay{background:linear-gradient(135deg,#145ED1,#1A9BEE);color:#fff}
+.btn{background:linear-gradient(135deg,#155DCA,#168FEA);color:#fff}
+.btn.o{background:transparent;color:var(--ink);border:1px solid var(--ln)}
+.dial .pg{stroke:#2BA8FF;filter:drop-shadow(0 0 5px rgba(43,168,255,.55))}
+.bal b i,.mid .l{color:#49C8FF}
+.ctr{color:#49C8FF}
+.plan .r{color:#36D6A0}
+#plans .plan small,#plans .plan .r{color:var(--pm)}
+#plans .plan .grp{color:var(--pm)}
+#plans .mi{filter:hue-rotate(145deg) saturate(1.25)}
+.logout-btn{border:1px solid var(--ln);background:var(--sf);color:var(--mu);border-radius:12px;padding:7px 10px;font-size:12px}
+.header-actions{display:flex;align-items:center;gap:7px}
+.message{background:var(--sf);color:var(--ink);border-color:var(--ln)}
+input{background:var(--sf);color:var(--ink);border-color:var(--ln)}
+
+:root:not([data-theme="light"]){
+ --bg:#061A35;--sf:#0B2850;--ink:#EAF4FF;--mu:#9DB9D9;--ln:#1B4778;
+ --ac:#1677F2;--acs:#FFFFFF;--gd:#49C8FF;--gt:#9BE7FF;--ok:#36D6A0;--tr:#174477;
+ color-scheme:dark;
+}

@@ -1,13 +1,20 @@
 import uuid
+from django.conf import settings
 from django.db import models
-class Payment(models.Model):
- id=models.UUIDField(primary_key=True,default=uuid.uuid4,editable=False)
- wallet=models.CharField(max_length=128)
- amount_nano=models.BigIntegerField()
- memo=models.CharField(max_length=96,unique=True)
- status=models.CharField(max_length=12,default='pending',choices=[('pending','Pending'),('confirmed','Confirmed'),('expired','Expired')])
- tx_hash=models.CharField(max_length=128,null=True,blank=True,unique=True)
- created_at=models.DateTimeField(auto_now_add=True)
- confirmed_at=models.DateTimeField(null=True,blank=True)
- @property
- def amount_ton(self): return self.amount_nano/10**9
+
+class PaymentOrder(models.Model):
+    STATUS = [("pending","Pending"),("confirmed","Confirmed"),("expired","Expired")]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="ton_payment_orders")
+    wallet = models.CharField(max_length=128)
+    receiver = models.CharField(max_length=128)
+    amount = models.DecimalField(max_digits=24, decimal_places=9)
+    memo = models.CharField(max_length=64, unique=True)
+    status = models.CharField(max_length=16, choices=STATUS, default="pending")
+    transaction_hash = models.CharField(max_length=128, blank=True, null=True, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField()
+
+    def __str__(self):
+        return f"{self.id} · {self.amount} TON · {self.status}"

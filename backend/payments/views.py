@@ -1,98 +1,110 @@
-import json,re,secrets,time,logging
-from decimal import Decimal,InvalidOperation
+import secrets
 from datetime import timedelta
+from decimal import Decimal, InvalidOperation
 from django.conf import settings
-from django.db import transaction
-from django.http import JsonResponse
-from django.views.decorators.http import require_GET,require_POST
-from django.views.decorators.csrf import csrf_exempt
+from django.db import transaction, IntegrityError
 from django.utils import timezone
-import requests
-from .models import Payment
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from mining.models import MiningAccount, Deposit
+from .models import PaymentOrder
+from .tonchain import normalize_ton_address, find_matching_payment
 
-log=logging.getLogger(__name__)
+MIN_AMOUNT = Decimal("1")
+MAX_AMOUNT = Decimal("100000")
+ORDER_TTL = timedelta(minutes=15)
 
-ADDRESS_RE=re.compile(r'^(?:EQ|UQ|kQ|0Q)[A-Za-z0-9_-]{46}$')
+def order_payload(order):
+    return {
+        "id": str(order.id),
+        "wallet": order.wallet,
+        "receiver": order.receiver,
+        "amount": str(order.amount),
+        "memo": order.memo,
+        "status": order.status,
+        "transaction_hash": order.transaction_hash,
+        "created_at": order.created_at.isoformat(),
+        "confirmed_at": order.confirmed_at.isoformat() if order.confirmed_at else None,
+    }
 
-def result(p):
- return {'id':str(p.id),'status':p.status,'amount':str(Decimal(p.amount_nano)/Decimal(10**9)),'memo':p.memo,'receiver':settings.TON_RECEIVER,'tx_hash':p.tx_hash}
+class PaymentCreateView(APIView):
+    permission_classes = [IsAuthenticated]
 
-@csrf_exempt
-@require_POST
-def create_payment(request):
- if not settings.TON_RECEIVER or not ADDRESS_RE.fullmatch(settings.TON_RECEIVER):
-  return JsonResponse({'error':'TON_RECEIVER is not configured with a valid wallet address'},status=503)
- if settings.TON_NETWORK!='mainnet':
-  return JsonResponse({'error':'This configuration only supports mainnet'},status=503)
- try:
-  body=json.loads(request.body)
-  wallet=str(body.get('wallet','')).strip()
-  amount=Decimal(str(body.get('amount','')))
-  nano=amount*Decimal(10**9)
-  if not ADDRESS_RE.fullmatch(wallet) or not amount.is_finite() or nano!=nano.to_integral_value() or not (Decimal('1')<=amount<=Decimal('100000')):
-   raise ValueError()
- except (ValueError,InvalidOperation,TypeError,KeyError,json.JSONDecodeError):
-  return JsonResponse({'error':'Invalid wallet or amount (minimum 1 TON)'},status=400)
- p=Payment.objects.create(wallet=wallet,amount_nano=int(nano),memo='TONMINER-'+secrets.token_hex(12))
- return JsonResponse(result(p),status=201)
+    def post(self, request):
+        try:
+            amount = Decimal(str(request.data.get("amount", "")))
+            wallet = str(request.data.get("wallet", "")).strip()
+            normalize_ton_address(wallet)
+        except (InvalidOperation, ValueError):
+            return Response({"error":"مبلغ یا آدرس کیف پول معتبر نیست."}, status=status.HTTP_400_BAD_REQUEST)
 
-def find_transfer(p):
- key=(settings.TONCENTER_API_KEY or '').strip()
- # Ignore empty/placeholder keys: a bad key makes Toncenter reject every request.
- headers={'X-API-Key':key} if key and not key.upper().startswith('YOUR_') else {}
- url=settings.TONCENTER_URL.rstrip('/')+'/getTransactions'
- params={'address':settings.TON_RECEIVER,'limit':100,'archival':'true'}
- for attempt in range(3):
-  response=requests.get(url,params=params,headers=headers,timeout=15)
-  if response.status_code==429 and attempt<2:
-   time.sleep(1.5);continue  # free tier without key: ~1 request/second
-  break
- if response.status_code>=400:
-  log.warning('Toncenter HTTP %s: %s',response.status_code,response.text[:300])
- response.raise_for_status()
- data=response.json()
- if not data.get('ok'): raise ValueError('TON API unavailable')
- for tx in data.get('result',[]):
-  incoming=tx.get('in_msg') or {}
-  # Toncenter v2 message contains decoded text comment when applicable.
-  if (incoming.get('message') or '').strip()!=p.memo:continue
-  if int(incoming.get('value') or 0)!=p.amount_nano:continue
-  source=incoming.get('source') or ''
-  # Compare addresses canonically (Toncenter can return different friendly formats).
-  if not same_address(source,p.wallet):continue
-  if tx.get('description',{}).get('aborted') is True:continue
-  if tx.get('transaction_id',{}).get('hash'):
-   return tx['transaction_id']['hash']
- return None
+        if not amount.is_finite() or amount < MIN_AMOUNT or amount > MAX_AMOUNT:
+            return Response({"error":"مبلغ معتبر حداقل ۱ و حداکثر ۱۰۰۰۰۰ TON است."}, status=400)
+        if amount.as_tuple().exponent < -9:
+            return Response({"error":"حداکثر ۹ رقم اعشار برای TON مجاز است."}, status=400)
 
-def same_address(a,b):
- # TON friendly addresses share the same 32-byte account ID even if bounce flags differ.
- import base64
- def decode(x):
-  if ':' in x:return x.lower()
-  try:
-   raw=base64.urlsafe_b64decode(x+'==')
-   if len(raw)!=36:return None
-   return f'{int.from_bytes(raw[1:2],"big",signed=True)}:{raw[2:34].hex()}'
-  except Exception:return None
- return decode(a) is not None and decode(a)==decode(b)
+        receiver = getattr(settings, "TON_RECEIVER_ADDRESS", "").strip()
+        if not receiver:
+            return Response({"error":"آدرس دریافت TON در سرور تنظیم نشده است."}, status=503)
+        try:
+            normalize_ton_address(receiver)
+        except ValueError:
+            return Response({"error":"آدرس دریافت TON در تنظیمات سرور معتبر نیست."}, status=503)
 
-@require_GET
-def payment_status(request,payment_id):
- try:p=Payment.objects.get(pk=payment_id)
- except Payment.DoesNotExist:return JsonResponse({'error':'Not found'},status=404)
- if p.status=='pending':
-  if p.created_at<timezone.now()-timedelta(hours=24):
-   p.status='expired';p.save(update_fields=['status'])
-  else:
-   try:
-    tx_hash=find_transfer(p)
-    if tx_hash:
-     with transaction.atomic():
-      p=Payment.objects.select_for_update().get(pk=p.pk)
-      if p.status=='pending' and not Payment.objects.filter(tx_hash=tx_hash).exclude(pk=p.pk).exists():
-       p.status='confirmed';p.tx_hash=tx_hash;p.confirmed_at=timezone.now();p.save(update_fields=['status','tx_hash','confirmed_at'])
-   except (requests.RequestException,ValueError,TypeError) as exc:
-    log.warning('Payment lookup failed for %s: %r',p.id,exc)
-    return JsonResponse({**result(p),'verification_error':'Blockchain lookup temporarily unavailable'},status=503)
- return JsonResponse(result(p))
+        memo = "TM-" + secrets.token_hex(12).upper()
+        order = PaymentOrder.objects.create(
+            user=request.user,
+            wallet=wallet,
+            receiver=receiver,
+            amount=amount,
+            memo=memo,
+            expires_at=timezone.now() + ORDER_TTL,
+        )
+        return Response(order_payload(order), status=status.HTTP_201_CREATED)
+
+class PaymentStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, order_id):
+        order = PaymentOrder.objects.filter(id=order_id, user=request.user).first()
+        if not order:
+            return Response({"error":"سفارش پرداخت پیدا نشد."}, status=404)
+
+        if order.status == "pending" and timezone.now() >= order.expires_at:
+            order.status = "expired"
+            order.save(update_fields=["status"])
+            return Response(order_payload(order))
+
+        if order.status == "pending":
+            try:
+                tx_hash = find_matching_payment(order)
+            except Exception as exc:
+                return Response({"error":"خطا در بررسی شبکه TON؛ دوباره تلاش کنید.", "verification_error":str(exc)}, status=502)
+
+            if tx_hash:
+                try:
+                    with transaction.atomic():
+                        locked = PaymentOrder.objects.select_for_update().get(id=order.id, user=request.user)
+                        if locked.status == "pending":
+                            # A chain transaction can only settle one order.
+                            locked.transaction_hash = tx_hash
+                            locked.status = "confirmed"
+                            locked.confirmed_at = timezone.now()
+                            locked.save(update_fields=["transaction_hash","status","confirmed_at"])
+                            account, _ = MiningAccount.objects.select_for_update().get_or_create(user=request.user)
+                            account.balance += locked.amount
+                            account.save(update_fields=["balance"])
+                            Deposit.objects.create(
+                                user=request.user,
+                                amount=locked.amount,
+                                status="confirmed",
+                                chain_tx_hash=tx_hash,
+                                confirmed_at=locked.confirmed_at,
+                            )
+                        order = locked
+                except IntegrityError:
+                    return Response({"error":"این تراکنش قبلاً برای سفارش دیگری ثبت شده است."}, status=409)
+
+        return Response(order_payload(order))
