@@ -40,3 +40,24 @@ input{background:var(--sf);color:var(--ink);border-color:var(--ln)}
  --ac:#1677F2;--acs:#FFFFFF;--gd:#49C8FF;--gt:#9BE7FF;--ok:#36D6A0;--tr:#174477;
  color-scheme:dark;
 }
+
+
+/* Refined TON header and navigation */
+.app-header{position:sticky;top:0;z-index:8;margin:0 -16px 18px;padding:13px 16px 14px;background:rgba(6,26,53,.88);border-bottom:1px solid rgba(73,200,255,.16);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.brand-lockup{display:flex;align-items:center;gap:11px;min-width:0}
+.brand-mark{width:42px;height:42px;display:grid;place-items:center;border-radius:14px;background:linear-gradient(145deg,#1b8be8,#42d3f5);box-shadow:0 7px 22px rgba(27,139,232,.28)}
+.brand-mark svg{width:25px;height:25px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.brand-copy h1{font-size:17px;line-height:1.25;letter-spacing:-.35px;color:#f3f9ff}
+.brand-copy small{display:block;margin-top:2px;color:#8eaccb;font-size:10px;letter-spacing:.8px;text-transform:uppercase}
+.wallet-connect{display:flex;align-items:center;gap:8px;min-height:40px;padding:7px 10px!important;border:1px solid rgba(73,200,255,.42)!important;border-radius:13px!important;background:linear-gradient(135deg,#1176d6,#159bdc)!important;color:#fff!important;font-size:12px!important;font-weight:800;box-shadow:0 5px 18px rgba(14,128,219,.2);transition:transform .18s ease,box-shadow .18s ease}
+.wallet-connect:active{transform:scale(.97)}
+.wallet-connect.on{background:rgba(15,54,82,.95)!important;border-color:rgba(54,214,160,.48)!important;box-shadow:none}
+.wallet-symbol{display:grid;place-items:center;width:20px;height:20px;border-radius:7px;background:rgba(255,255,255,.17);font-size:12px}
+.wallet-state{padding:2px 6px;border-radius:6px;background:rgba(255,255,255,.15);font-size:9px;letter-spacing:.5px}
+nav{margin:0 10px calc(10px + env(safe-area-inset-bottom,0px));padding:8px 7px!important;gap:4px;border:1px solid rgba(73,200,255,.18);border-radius:19px;background:rgba(8,35,67,.94)!important;box-shadow:0 12px 35px rgba(0,0,0,.28);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+nav button{position:relative;border-radius:12px;padding:7px 3px!important;gap:3px!important;font-size:11px!important;transition:background .18s ease,color .18s ease}
+nav button[aria-selected="true"]{background:linear-gradient(135deg,rgba(22,119,242,.25),rgba(73,200,255,.12));color:#63d2ff!important}
+nav button[aria-selected="true"]:before{content:"";position:absolute;top:-8px;width:20px;height:2px;border-radius:5px;background:#49c8ff;box-shadow:0 0 10px #49c8ff}
+nav svg{width:21px;height:21px}
+@media(min-width:700px){.app-header{position:relative;margin:0 0 18px;border:1px solid rgba(73,200,255,.16);border-radius:18px}.app-header+section{margin-top:0}nav{max-width:480px;margin:0 auto 20px}}
+@media(max-width:370px){.wallet-connect{gap:5px;padding:6px 7px!important;font-size:11px!important}.brand-copy h1{font-size:15px}}
