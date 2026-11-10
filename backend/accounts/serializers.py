@@ -1,6 +1,7 @@
 import secrets
 from decimal import Decimal
 from django.contrib.auth.models import User
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from referrals.models import Referral, ReferralProfile
 from mining.models import MiningAccount
@@ -44,11 +45,12 @@ def create_guest_user(referral_code=""):
         Referral.objects.create(
             referrer=referrer,
             referred_user=user,
-            reward_amount=REFERRAL_REWARD_TON,
+            reward_amount=REFERRAL_REWARD_TON if settings.DEMO_MODE else Decimal("0"),
             verified=True,
         )
-        acc, _ = MiningAccount.objects.select_for_update().get_or_create(user=referrer)
-        acc.balance += REFERRAL_REWARD_TON
-        acc.save(update_fields=["balance"])
+        if settings.DEMO_MODE:
+            acc, _ = MiningAccount.objects.select_for_update().get_or_create(user=referrer)
+            acc.balance += REFERRAL_REWARD_TON
+            acc.save(update_fields=["balance"])
 
     return user

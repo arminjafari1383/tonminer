@@ -27,7 +27,7 @@ class ReferralView(APIView):
             "count": qs.count(),
             "verified_count": qs.filter(verified=True).count(),
             "total_reward": str(total_reward),
-            "reward_per_referral": "1.000000000",
+            "reward_per_referral": "1.000000000" if settings.DEMO_MODE else "0",
             "items": [{
                 "username": r.referred_user.username,
                 "verified": r.verified,

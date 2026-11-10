@@ -26,6 +26,8 @@ class WithdrawalView(APIView):
 
     @transaction.atomic
     def post(self, request):
+        if not settings.DEMO_MODE:
+            return Response({"detail": "On-chain withdrawals are not enabled in this build."}, status=503)
         MiningAccount.objects.select_for_update().get_or_create(user=request.user)
         account = accrue(request.user)
         try:

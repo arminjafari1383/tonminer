@@ -9,7 +9,13 @@ D = Decimal
 @transaction.atomic
 def accrue(user):
     account, _ = MiningAccount.objects.select_for_update().get_or_create(user=user)
+    from django.conf import settings
     now = timezone.now()
+    if not settings.DEMO_MODE:
+        # No synthetic mining, free-cycle or yield rewards in live-payment mode.
+        account.last_accrued_at = now
+        account.save(update_fields=["last_accrued_at"])
+        return account
     elapsed = max(0, (now - account.last_accrued_at).total_seconds())
     if elapsed <= 0:
         return account
@@ -44,9 +50,13 @@ def dashboard_for(user):
     next_cycle = account.free_cycle_started_at + timedelta(seconds=FREE_CYCLE_SECONDS)
 
     # Lifetime earnings by source (no extra DB column needed)
-    cycles_done = int(round((account.free_cycle_started_at - account.created_at).total_seconds() / FREE_CYCLE_SECONDS))
-    free_earned = D(FREE_CYCLE_REWARD_TON) * max(0, cycles_done)
-    referral_earned = Referral.objects.filter(referrer=user).aggregate(t=Sum("reward_amount"))["t"] or D("0")
+    if settings.DEMO_MODE:
+        cycles_done = int(round((account.free_cycle_started_at - account.created_at).total_seconds() / FREE_CYCLE_SECONDS))
+        free_earned = D(FREE_CYCLE_REWARD_TON) * max(0, cycles_done)
+        referral_earned = Referral.objects.filter(referrer=user).aggregate(t=Sum("reward_amount"))["t"] or D("0")
+    else:
+        free_earned = D("0")
+        referral_earned = D("0")
     yield_earned = account.deposit_yield_earned
     total_mined = free_earned + referral_earned + yield_earned
     return {

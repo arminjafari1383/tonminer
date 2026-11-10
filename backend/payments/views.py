@@ -56,9 +56,10 @@ def settle_order(order, tx_hash):
                 daily_rate_percent=rate_for(locked.amount),
             )
         else:
-            account, _ = MiningAccount.objects.select_for_update().get_or_create(user=locked.user)
-            account.balance += locked.amount
-            account.save(update_fields=["balance"])
+            # A confirmed purchase is recorded as a payment only. Do not turn the
+            # incoming purchase amount into a withdrawable user balance. Actual
+            # mining/reward distribution and on-chain payouts are not implemented.
+            pass
         return locked
 
 
@@ -73,7 +74,11 @@ class PaymentCreateView(APIView):
             if demo:
                 wallet = (wallet or "demo")[:128]
             else:
-                normalize_ton_address(wallet)
+                wallet = normalize_ton_address(wallet)
+                # Only accept deposits from the wallet already connected to this account.
+                account, _ = MiningAccount.objects.get_or_create(user=request.user)
+                if not account.wallet_address or normalize_ton_address(account.wallet_address) != wallet:
+                    return Response({"error": "Connect and save this TON wallet before creating a payment."}, status=400)
         except (InvalidOperation, ValueError):
             return Response({"error": "Invalid amount or wallet address."}, status=status.HTTP_400_BAD_REQUEST)
 

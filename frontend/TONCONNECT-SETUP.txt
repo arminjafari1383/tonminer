@@ -1,8 +1,0 @@
-TON Connect deployment checklist
-
-1. Set VITE_PUBLIC_URL in the frontend environment to the exact public HTTPS origin (for example https://miner.example.com).
-2. Update public/tonconnect-manifest.json: set both `url` and `iconUrl` to that same live origin (`/icon.svg` for iconUrl).
-3. Deploy the frontend and verify that https://YOUR-DOMAIN/tonconnect-manifest.json is publicly reachable and returns valid JSON.
-4. The Connect wallet button opens the official TON Connect modal. Users can choose Tonkeeper and other TON Connect-compatible wallets. The app requests transactions on TON Mainnet.
-
-Do not leave the example domain in the manifest in production. TON Connect requires a valid public manifest hosted on your app's domain.
