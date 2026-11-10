@@ -13,8 +13,11 @@ RUN npm install -D @vitejs/plugin-react@^5.0.0
 
 COPY . .
 
+# These values must be available at build time because Vite embeds them in the bundle.
 ARG VITE_API_URL=/api
+ARG VITE_PUBLIC_URL
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_PUBLIC_URL=${VITE_PUBLIC_URL}
 
 RUN npm run build
 
