@@ -8,3 +8,4 @@ export default function App(){
  if(!user)return <main className="auth"><p className="error">{error||"Could not connect to the server."}</p><button className="primary" onClick={retry}>Try again</button></main>;
  return <>{user.demo&&<div style={{background:"#b45309",color:"#fff",textAlign:"center",padding:"6px 10px",fontSize:13}}>Demo mode: all amounts are simulated; no real TON is moved.</div>}<MinerApp demo={!!user.demo}/></>;
 }
+// f
