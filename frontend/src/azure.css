@@ -40,3 +40,8 @@ input{background:var(--sf);color:var(--ink);border-color:var(--ln)}
  --ac:#1677F2;--acs:#FFFFFF;--gd:#49C8FF;--gt:#9BE7FF;--ok:#36D6A0;--tr:#174477;
  color-scheme:dark;
 }
+
+/* Dedicated TON Connect action inside the Miner tab */
+.miner-wallet{margin:14px 0 18px}
+#miner-connect-wallet{margin-top:0;display:block;width:100%;border:0;border-radius:14px;padding:14px 16px;font-size:15px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#0079BA,#0098EA);color:#fff;box-shadow:0 4px 14px rgba(0,152,234,.28)}
+.miner-wallet .mu{overflow-wrap:anywhere}
